@@ -19,8 +19,8 @@ if( @ARGV < 2 ) {
     exit 1;
 }
 
-my %toDo = ();
-$toDo{shift @ARGV} = 1;
+my %toDos = (); # hash from URL to access, to array of URLs where this URL is mentioned
+$toDos{shift @ARGV} = '<start>';
 my @regexes;
 if( @ARGV ) {
     @regexes = map { '^' . quotemeta( $_ ) } @ARGV;
@@ -32,12 +32,12 @@ my %fails = ();
 
 my $mech = WWW::Mechanize->new( onerror => undef );
 
-OUTER: while( keys %toDo ) {
+OUTER: while( keys %toDos ) {
     if( $debug ) {
-        print "To do: " . join( ' ', keys %toDo ) . "\n";
+        print "To do: " . join( ' ', keys %toDos ) . "\n";
     }
-    my %newToDo = ();
-    foreach my $toDo ( keys %toDo ) {
+    my %newToDos = ();
+    foreach my $toDo ( keys %toDos ) {
         my $response = $mech->get( $toDo );
         $done{$toDo} = 1;
         if( $response->is_success ) {
@@ -59,10 +59,15 @@ OUTER: while( keys %toDo ) {
                 print "$toDo -> " . join( ', ', @links ) . "\n";
             }
             @links = grep { !$done{$_} } @links;
-            map { $newToDo{$_} = 1 } @links;
+            map { my $t = $_;
+                  if( exists( $newToDos{$t} )) {
+                      push @{$newToDos{$t}}, $toDo;
+                  } else {
+                      $newToDos{$t} = [ $toDo ];
+                  }
+                 } @links;
         } else {
-            print STDERR "Failed: $toDo -> " . $response->status_line . "\n";
-            $fails{$toDo} = $response->status_line;
+            $fails{$toDo} = [ $response->status_line, @{$toDos{$toDo}} ];
         }
         --$abortMax;
         if( $abortMax <= 0 ) {
@@ -70,10 +75,15 @@ OUTER: while( keys %toDo ) {
             last OUTER;
         }
     }
-    %toDo = %newToDo;
+    %toDos = %newToDos;
 }
 
 if( %fails ) {
+    foreach my $url ( keys %fails ) {
+        my @data  = @{$fails{$url}};
+        my $error = shift @data;
+        print STDERR "Failed: $url -> $error (used: " . join( ', ', @data ) . ")\n";
+    }
     exit 1;
 } else {
     exit 0;
