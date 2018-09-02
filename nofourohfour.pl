@@ -20,7 +20,7 @@ if( @ARGV < 2 ) {
 }
 
 my %toDos = (); # hash from URL to access, to array of URLs where this URL is mentioned
-$toDos{shift @ARGV} = '<start>';
+$toDos{shift @ARGV} = [ '<start>' ];
 my @regexes;
 if( @ARGV ) {
     @regexes = map { '^' . quotemeta( $_ ) } @ARGV;
