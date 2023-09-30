@@ -86,6 +86,9 @@ if( %fails ) {
     }
     exit 1;
 } else {
+    print( "Checked:\n" );
+    print( join( "\n", sort keys %done ) . "\n" );
+
     exit 0;
 }
 
